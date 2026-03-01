@@ -83,3 +83,88 @@ class TestParseResponseEndpoint:
             files={"file": ("bad.txt", b"this is not a valid ncpdp file")},
         )
         assert resp.status_code == 400
+
+
+class TestStubAdjudicateEndpoint:
+    def _get_batch_text(self):
+        resp = client.post("/api/claims/ncpdp/batch", json=[SAMPLE_CLAIM])
+        assert resp.status_code == 200
+        return resp.text
+
+    def test_adjudicate_returns_plain_text(self):
+        batch_text = self._get_batch_text()
+        resp = client.post(
+            "/api/claims/ncpdp/stub-adjudicate",
+            content=batch_text.encode("utf-8"),
+        )
+        assert resp.status_code == 200
+        assert resp.headers["content-type"] == "text/plain; charset=utf-8"
+
+    def test_adjudicate_response_is_parseable(self):
+        batch_text = self._get_batch_text()
+        resp = client.post(
+            "/api/claims/ncpdp/stub-adjudicate",
+            content=batch_text.encode("utf-8"),
+        )
+        # The response should be parseable by parse-response-text
+        parse_resp = client.post(
+            "/api/claims/ncpdp/parse-response-text",
+            content=resp.text.encode("utf-8"),
+        )
+        assert parse_resp.status_code == 200
+        data = parse_resp.json()
+        assert len(data["transmissions"]) == 1
+
+    def test_full_pipeline_roundtrip(self):
+        """encode → adjudicate → parse roundtrip via API."""
+        # Step 1: Encode batch
+        batch_resp = client.post("/api/claims/ncpdp/batch", json=[SAMPLE_CLAIM, SAMPLE_CLAIM])
+        assert batch_resp.status_code == 200
+
+        # Step 2: Adjudicate
+        adj_resp = client.post(
+            "/api/claims/ncpdp/stub-adjudicate",
+            content=batch_resp.text.encode("utf-8"),
+        )
+        assert adj_resp.status_code == 200
+
+        # Step 3: Parse response
+        parse_resp = client.post(
+            "/api/claims/ncpdp/parse-response-text",
+            content=adj_resp.text.encode("utf-8"),
+        )
+        assert parse_resp.status_code == 200
+        data = parse_resp.json()
+        assert len(data["transmissions"]) == 2
+
+
+class TestParseResponseTextEndpoint:
+    def test_parse_response_text(self):
+        with open(BATCH_RESPONSE_PATH, "rb") as f:
+            content = f.read()
+        resp = client.post(
+            "/api/claims/ncpdp/parse-response-text",
+            content=content,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["transmissions"]) == 2
+
+    def test_parse_response_text_structure(self):
+        with open(BATCH_RESPONSE_PATH, "rb") as f:
+            content = f.read()
+        resp = client.post(
+            "/api/claims/ncpdp/parse-response-text",
+            content=content,
+        )
+        tx = resp.json()["transmissions"][0]
+        assert "header" in tx
+        assert "segments" in tx
+        assert "transactions" in tx
+
+    def test_parse_response_text_invalid(self):
+        resp = client.post(
+            "/api/claims/ncpdp/parse-response-text",
+            content=b"this is not valid ncpdp",
+        )
+        assert resp.status_code == 400

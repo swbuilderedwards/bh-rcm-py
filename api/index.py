@@ -8,12 +8,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import io
+
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
 from lib.ncpdp import batch, encoders
 from lib.ncpdp.adapter import NcpdpClaimInput, build_transmission_dict
+from lib.ncpdp.adjudicator import adjudicate_batch
 
 app = FastAPI()
 
@@ -50,4 +53,26 @@ async def parse_response(file: UploadFile = File()):
         transmissions = list(batch.parse_from(file.file))
     except (AssertionError, Exception) as exc:
         raise HTTPException(status_code=400, detail=f"Invalid file format: {exc}")
+    return {"transmissions": transmissions}
+
+
+@app.post("/api/claims/ncpdp/stub-adjudicate")
+async def stub_adjudicate(request: Request):
+    body = await request.body()
+    batch_text = body.decode("utf-8")
+    try:
+        response_text = adjudicate_batch(batch_text)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Adjudication failed: {exc}")
+    return PlainTextResponse(response_text)
+
+
+@app.post("/api/claims/ncpdp/parse-response-text")
+async def parse_response_text(request: Request):
+    body = await request.body()
+    try:
+        filestream = io.BytesIO(body)
+        transmissions = list(batch.parse_from(filestream))
+    except (AssertionError, Exception) as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid response format: {exc}")
     return {"transmissions": transmissions}

@@ -5,11 +5,6 @@ import sys
 
 from lib.ncpdp import batch
 
-# Lock down the behavior of the random number generator, so that subsequent
-# generations of this file are consistent.
-random.seed(0)
-
-
 def reference_number():
     """Reference numbers are intended to be somewhat random, and 7 digits long."""
     return random.randint(1000000, 9999999)
@@ -20,6 +15,9 @@ def run_claims(fstream):
 
 
 def get_all_claims():
+    # Lock down the behavior of the random number generator, so that subsequent
+    # generations of this file are consistent.
+    random.seed(0)
 
     CURRENT_DATE = int(datetime.date.today().strftime("%Y%m%d"))
     SERVICE_PROVIDER_ID = 6501026200

@@ -25,6 +25,26 @@ def format_batch(transmission_dicts: list[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
+RESPONSE_HEADER_LINE = "   R" + " " * 2000
+
+RESPONSE_TRAILER_LINE = "0000000000"
+
+
+def format_response_batch(response_dicts: list[dict]) -> str:
+    """Format response transmission dicts into a batch response that parse_from() can read.
+
+    Structure:
+    - Line 1: header starting with "   R" (padded to match real CVS responses)
+    - Lines 2–N: one encoded transmission per response dict (each starts with "D0")
+    - Last line: trailer "0000000000" (stops parse_from because it doesn't start with "D0")
+    """
+    lines = [RESPONSE_HEADER_LINE]
+    for rd in response_dicts:
+        lines.append(encoders.Transmission.format(rd, enforce_types=False))
+    lines.append(RESPONSE_TRAILER_LINE)
+    return "\n".join(lines) + "\n"
+
+
 def parse_from(filestream):
     """Given a filestream of a NCPDP batch file, attempt to parse multiple
     transmissions out of it.
