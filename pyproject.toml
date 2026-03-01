@@ -2,4 +2,4 @@
 name = "bh-rcm-py"
 version = "0.1.0"
 requires-python = ">=3.9"
-dependencies = ["fastapi"]
+dependencies = ["fastapi", "pydantic", "python-multipart"]
