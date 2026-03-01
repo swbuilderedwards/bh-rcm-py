@@ -19,4 +19,6 @@ class TestNCPDPCertification:
         buf.seek(0)
 
         golden_path = Path(__file__).parent / "data" / "golden_submission.ncpdp"
-        assert golden_path.read_text() == buf.read()
+        golden_path_text = golden_path.read_text()
+        buf_text = buf.read()
+        assert golden_path_text == buf_text
