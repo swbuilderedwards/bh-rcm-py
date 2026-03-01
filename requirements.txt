@@ -1,4 +1,6 @@
 fastapi
 freezegun
+httpx
 pytest
+python-multipart
 pydantic
